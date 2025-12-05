@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Reserva de Vuelos — CDMX → Qatar</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+  :root {
+    --glass-bg: rgba(255,255,255,0.28);
+    --glass-border: rgba(255,255,255,0.35);
+    --glass-shadow: rgba(0,0,0,0.25);
+    --blur: blur(15px);
+    --blue1: #CBF1F5;
+    --blue2: #3F72AF;
+    --text: #001F52;
+    --turista: #004080;
+    --primera: #5A8BBF;
+    --retenido: #006699;
+    --vendido: #002244;
+    --selected: #00a86b;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(var(--blue1), var(--blue2));
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 120;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  /* HEADER Y AUTH */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 2px solid var(--glass-border);
+    margin-bottom: 30px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    color: var(--text);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  #auth {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+
+  #auth-info {
+    font-weight: bold;
+    color: var(--text);
+    padding: 8px 16px;
+    background: var(--glass-bg);
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+  }
+
+  #auth button {
+    padding: 10px 20px;
+    border-radius: 10px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--blur);
+    cursor: pointer;
+    color: var(--text);
+    font-weight: bold;
+    transition: all 0.3s;
+  }
+
+  #auth button:hover {
+    background: rgba(255,255,255,0.4);
+    transform: translateY(-2px);
+  }
+
+  /* FLIGHT INFO */
+  .flight-card {
+    padding: 25px;
+    margin-bottom: 30px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 15px;
+    backdrop-filter: var(--blur);
+    box-shadow: 0 8px 32px var(--glass-shadow);
+  }
+
+  .flight-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+  }
+
+  .info-group h3 {
+    margin-top: 0;
+    color: var(--text);
+    border-bottom: 2px solid var(--glass-border);
+    padding-bottom: 5px;
+  }
+
+  .info-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .info-item strong {
+    color: var(--text);
+  }
+
+  /* SEATS GRID */
+  .seats-section {
+    padding: 25px;
+    margin-bottom: 30px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 15px;
+    backdrop-filter: var(--blur);
+  }
+
+  .controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+  }
+
+  .controls input[type="number"] {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.8);
+    width: 80px;
+  }
+
+  .controls button {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s;
+  }
+
+  .controls button:hover {
+    background: rgba(255,255,255,0.4);
+  }
+
+  .seats-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .class-section {
+    margin-bottom: 30px;
+  }
+
+  .class-title {
+    background: rgba(255,255,255,0.2);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    text-align: center;
+    border: 1px solid var(--glass-border);
+  }
+
+  .seats-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .seat {
+    padding: 15px 5px;
+    text-align: center;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 50px;
+  }
+
+  .seat:hover {
+    transform: scale(1.05);
+  }
+
+  .seat.turista.libre { 
+    background: var(--turista); 
+    color: white;
+    border-color: #003366;
+  }
+  
+  .seat.primera.libre { 
+    background: var(--primera); 
+    color: white;
+    border-color: #3a6ba5;
+  }
+  
+  .seat.retenido { 
+    background: var(--retenido); 
+    color: white;
+    border: 2px dashed #ff9800;
+  }
+  
+  .seat.vendido { 
+    background: var(--vendido); 
+    color: #ccc;
+    text-decoration: line-through;
+    cursor: not-allowed;
+  }
+  
+  .seat.selected { 
+    background: var(--selected);
+    color: white;
+    border: 2px solid #00ff88;
+    box-shadow: 0 0 10px rgba(0,255,136,0.5);
+  }
+
+  .legend {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    justify-content: center;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 5px;
+    border: 1px solid var(--glass-border);
+  }
+
+  .legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+  }
+
+  /* SUMMARY */
+  .summary-section {
+    padding: 25px;
+    margin-bottom: 30px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 15px;
+    backdrop-filter: var(--blur);
+  }
+
+  #summary-items {
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+  }
+
+  .summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .summary-item:last-child {
+    border-bottom: none;
+  }
+
+  .payment-form {
+    margin-top: 20px;
+    padding: 20px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+
+  .form-group input,
+  .form-group select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.8);
+  }
+
+  .card-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+
+  .card-inputs .form-group:first-child {
+    grid-column: span 2;
+  }
+
+  #confirm-btn {
+    width: 100%;
+    padding: 15px;
+    margin-top: 20px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  #confirm-btn:hover:not(:disabled) {
+    background: #45a049;
+    transform: translateY(-2px);
+  }
+
+  #confirm-btn:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+  }
+
+  /* MODALES */
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(5px);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  .modal-box {
+    width: 350px;
+    max-width: 90%;
+    padding: 30px;
+    border-radius: 15px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  }
+
+  .modal-box h2 {
+    margin: 0 0 20px 0;
+    text-align: center;
+    color: var(--text);
+  }
+
+  .modal-box input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.9);
+    box-sizing: border-box;
+  }
+
+  .modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .modal-buttons button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s;
+  }
+
+  .modal-buttons button:hover {
+    background: rgba(255,255,255,0.4);
+  }
+
+  .modal-buttons .primary {
+    background: var(--primera);
+    color: white;
+    border: none;
+  }
+
+  .modal-buttons .primary:hover {
+    background: #4a7bb5;
+  }
+
+  /* RECEIPT */
+  .receipt {
+    padding: 25px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 15px;
+    backdrop-filter: var(--blur);
+    margin-bottom: 30px;
+  }
+
+  .receipt-header {
+    background: #4CAF50;
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .seats-grid {
+      grid-template-columns: repeat(5, 1fr);
+    }
+    
+    .card-inputs {
+      grid-template-columns: 1fr;
+    }
+    
+    .card-inputs .form-group:first-child {
+      grid-column: span 1;
+    }
+    
+    .controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    .controls > * {
+      width: 100%;
+    }
+  }
+</style>
+</head>
+
+<body>
+<div class="container">
+  
+  <!-- HEADER -->
+  <header>
+    <h1>Reserva de Vuelo CDMX → Qatar</h1>
+    <div id="auth">
+      <span id="auth-info">No has iniciado sesión</span>
+      <button id="open-login">Iniciar sesión</button>
+      <button id="open-register">Registrarse</button>
+      <button id="btn-logout" style="display:none;">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <!-- FLIGHT INFO -->
+  <section class="flight-card">
+	<div class="flight-info" id="flight-info"></div>
+  </section>
+
+   <!-- SEATS -->
+  <section class="seats-section">
+    <h2>Selección de Asientos</h2>
+    <div class="controls">
+      <div>
+        <label>Número de boletos:</label>
+        <input type="number" id="tickets" min="1" value="1">
+      </div>
+      <button id="clear-selection">Limpiar selección</button>
+      <button id="reset-all" style="display:none;">Reiniciar todos los asientos (Admin)</button>
+    </div>
+    <div id="seats-container" class="seats-container"></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-color" style="background: var(--primera);"></div>Primera</div>
+      <div class="legend-item"><div class="legend-color" style="background: var(--turista);"></div>Turista</div>
+      <div class="legend-item"><div class="legend-color" style="background: var(--retenido);"></div>Retenido</div>
+      <div class="legend-item"><div class="legend-color" style="background: var(--vendido);"></div>Vendido</div>
+      <div class="legend-item"><div class="legend-color" style="background: var(--selected);"></div>Seleccionado</div>
+    </div>
+  </section>
+
+
+<!-- SUMMARY & PAYMENT -->
+<section class="summary-section">
+  <h2>Resumen y Pago</h2>
+  <div id="summary-items"><p>No hay asientos seleccionados.</p></div>
+  <div id="total-amount" style="text-align:right;font-size:24px;font-weight:bold;margin:20px 0;">Total: $0</div>
+
+  <div class="payment-form">
+    <h3>Información del Comprador</h3>
+    <div class="form-group">
+      <input id="buyer-name" placeholder="Nombre completo" style="width:100%;padding:10px;">
+    </div>
+
+    <h3>Información de la Tarjeta</h3>
+    <div class="card-inputs">
+      <div class="form-group" style="grid-column:span 2;">
+        <input id="card-number" placeholder="1234 5678 9012 3456" maxlength="19" style="width:100%;padding:10px;">
+      </div>
+      <div class="form-group">
+        <input id="card-cvv" placeholder="CVV" maxlength="3" style="width:100%;padding:10px;">
+      </div>
+      <div class="form-group">
+        <input id="card-expiry" placeholder="MM/AA" maxlength="5" style="width:100%;padding:10px;">
+      </div>
+    </div>
+  </div>
+
+  <button id="confirm-btn" disabled style="width:100%;padding:15px;margin-top:20px;">Confirmar Compra</button>
+</section>
+
+  <!-- RECEIPT -->
+  <section id="receipt" class="receipt" style="display:none;"></section>
+</div>
+
+<!-- LOGIN MODAL -->
+<div id="modal-login" class="modal">
+  <div class="modal-box">
+    <h2>Iniciar Sesión</h2>
+    <input id="login-email" placeholder="Email">
+    <input id="login-password" type="password" placeholder="Contraseña">
+
+    <p style="text-align:center; margin-top:10px;">
+      <a href="#" id="forgot-link">¿Olvidaste tu contraseña?</a>
+    </p>
+
+    <div class="modal-buttons">
+      <button id="close-login">Cerrar</button>
+      <button id="btn-login-modal" class="primary">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTER MODAL -->
+<div id="modal-register" class="modal">
+  <div class="modal-box">
+    <h2>Registro</h2>
+    <input id="register-username" placeholder="Nombre de usuario">
+    <input id="register-email" placeholder="Correo electrónico">
+    <input id="register-password" type="password" placeholder="Contraseña">
+    <input id="register-password2" type="password" placeholder="Confirmar contraseña">
+    <div class="modal-buttons">
+      <button id="close-register">Cerrar</button>
+      <button id="btn-register-modal" class="primary">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FORGOT PASSWORD MODAL -->
+<div id="modal-forgot" class="modal">
+  <div class="modal-box">
+    <h2>Recuperar Contraseña</h2>
+
+    <input id="forgot-email" placeholder="Correo registrado">
+    <button id="btn-send-code" class="primary">Enviar código</button>
+
+    <div id="forgot-step2" style="display:none;margin-top:20px;">
+      <input id="forgot-code" placeholder="Código recibido">
+      <input id="forgot-newpass" type="password" placeholder="Nueva contraseña">
+      <button id="btn-reset-pass" class="primary">Actualizar contraseña</button>
+    </div>
+
+    <button onclick="closeModal('modal-forgot')" style="margin-top:15px;">Cerrar</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+
+/* ========================================= */
+/* VARIABLES GLOBALES */
+/* ========================================= */
+let token = localStorage.getItem("token") || null;
+let currentUser = null;
+let socket = null;
+let state = null;
+let selectedSeats = [];
+
+/* ========================================= */
+/* HELPERS */
+/* ========================================= */
+
+document.getElementById("forgot-link").onclick = () => {
+  closeModal("modal-login");
+  openModal("modal-forgot");
+};
+
+function openModal(id){ 
+  document.getElementById(id).style.display = "flex"; 
+}
+
+function closeModal(id){ 
+  document.getElementById(id).style.display = "none"; 
+  const inputs = document.querySelectorAll(`#${id} input`);
+  inputs.forEach(input => input.value = '');
+}
+
+async function apiPost(url, data){
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? {"Authorization": `Bearer ${token}`} : {})
+      },
+      body: JSON.stringify(data)
+    });
+    return await r.json();
+  } catch (error) {
+    console.error('Error en apiPost:', error);
+    return { error: 'Error de conexión' };
+  }
+}
+
+function formatMoney(amount) {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 0
+  }).format(amount);
+}
+
+/* ========================================= */
+/* MANEJO DE MODALES */
+/* ========================================= */
+document.getElementById("open-login").onclick = () => openModal("modal-login");
+document.getElementById("open-register").onclick = () => openModal("modal-register");
+document.getElementById("close-login").onclick = () => closeModal("modal-login");
+document.getElementById("close-register").onclick = () => closeModal("modal-register");
+
+window.onclick = function(event) {
+  if (event.target.classList.contains('modal')) {
+    event.target.style.display = "none";
+  }
+};
+
+/* ========================================= */
+/* REGISTRO */
+/* ========================================= */
+document.getElementById("btn-register-modal").onclick = async () => {
+  const u = document.getElementById("register-username").value.trim();
+  const email = document.getElementById("register-email").value.trim();
+  const p = document.getElementById("register-password").value;
+  const p2 = document.getElementById("register-password2").value;
+
+  if(!u || !email || !p) {
+    alert("Completa todos los campos.");
+    return;
+  }
+  
+  if(!email.includes("@")) {
+    alert("El correo debe contener @.");
+    return;
+  }
+  
+  if(p !== p2) {
+    alert("Las contraseñas no coinciden.");
+    return;
+  }
+
+  const res = await apiPost("/register", {
+    username: u,
+    email: email,
+    password: p
+  });
+
+  if(res.ok){
+    alert("Registro exitoso. Ahora inicia sesión.");
+    closeModal("modal-register");
+    openModal("modal-login");
+  } else {
+    alert("❌ Error al registrar: " + (res.error || "Error desconocido"));
+  }
+};
+
+/* ========================================= */
+/* LOGIN */
+/* ========================================= */
+document.getElementById("btn-login-modal").onclick = async () => {
+  const u = document.getElementById("login-email").value; 
+  const p = document.getElementById("login-password").value;
+
+  if(!u || !p) {
+    alert("Ingresa email y contraseña."); 
+    return;
+  }
+
+  // CORRECCIÓN CLAVE: Cambiar 'username: u' a 'email: u'
+  // Esto asume que el backend permite loggearse con el campo 'email'.
+  const res = await apiPost("/login", {email: u, password: p}); // <-- ¡CAMBIO AQUÍ!
+
+  if(res.token){
+    token = res.token;
+    localStorage.setItem("token", token);
+    currentUser = res.user;
+
+    closeModal("modal-login");
+    connectSocket(); 
+    renderUI(); 
+    updateConfirmButton(); 
+    
+    document.getElementById("buyer-name").value = currentUser.username;
+  } else {
+    alert("❌ Usuario o contraseña incorrectos.");
+  }
+};
+
+/* ========================================= */
+/* LOGOUT */
+/* ========================================= */
+document.getElementById("btn-logout").onclick = () => {
+  if(confirm("¿Seguro que quieres cerrar sesión?")) {
+    token = null;
+    localStorage.removeItem("token");
+    currentUser = null;
+    
+    if(socket) {
+      socket.disconnect();
+      socket = null;
+    }
+    
+    selectedSeats = [];
+    renderUI();
+    renderSummary();
+    updateConfirmButton();
+  }
+};
+
+/* ========================================= */
+/* RENDER UI */
+/* ========================================= */
+function renderUI(){
+  const authInfo = document.getElementById("auth-info");
+  const btnLogin = document.getElementById("open-login");
+  const btnReg = document.getElementById("open-register");
+  const btnOut = document.getElementById("btn-logout");
+  const resetBtn = document.getElementById("reset-all");
+
+  if(currentUser){
+    authInfo.textContent = `👋 Hola, ${currentUser.username} (${currentUser.role})`;
+    btnLogin.style.display = "none";
+    btnReg.style.display = "none";
+    btnOut.style.display = "block";
+    resetBtn.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  } else {
+    authInfo.textContent = "No has iniciado sesión";
+    btnLogin.style.display = "block";
+    btnReg.style.display = "block";
+    btnOut.style.display = "none";
+    resetBtn.style.display = "none";
+  }
+}
+
+/* ========================================= */
+/* RENDER FLIGHT INFO */
+/* ========================================= */
+function renderFlightInfo() {
+  if(!state || !state.flight) return;
+  
+  const flight = state.flight;
+  const container = document.getElementById("flight-info");
+  
+  container.innerHTML = `
+    <div class="info-group">
+      <h3>Información del Vuelo</h3>
+      <div class="info-item">
+        <span><strong>Número:</strong></span>
+        <span>${flight.numero}</span>
+      </div>
+      <div class="info-item">
+        <span><strong>Tipo:</strong></span>
+        <span>${flight.tipo}</span>
+      </div>
+      <div class="info-item">
+        <span><strong>Origen:</strong></span>
+        <span>${flight.origen}</span>
+      </div>
+      <div class="info-item">
+        <span><strong>Destino:</strong></span>
+        <span>${flight.destino}</span>
+      </div>
+    </div>
+    <div class="info-group">
+      <h3>Detalles del Viaje</h3>
+      <div class="info-item">
+        <span><strong>Fecha:</strong></span>
+        <span>${flight.fecha}</span>
+      </div>
+      <div class="info-item">
+        <span><strong>Hora:</strong></span>
+        <span>${flight.hora}</span>
+      </div>
+      <div class="info-item">
+        <span><strong>Lugar de salida:</strong></span>
+        <span>${flight.lugarSalida}</span>
+      </div>
+    </div>
+  `;
+}
+
+/* ========================================= */
+/* CREATE SEAT ELEMENT */
+/* ========================================= */
+function createSeatElement(seat) {
+  const div = document.createElement('div');
+  div.className = `seat ${seat.clase} ${seat.estado}`;
+  div.textContent = seat.id;
+  div.dataset.id = seat.id;
+  div.dataset.clase = seat.clase;
+  
+  const isSelected = selectedSeats.some(s => s.seatId === seat.id);
+  if (isSelected) {
+    div.classList.add('selected');
+  }
+  
+  div.title = `${seat.id} - ${seat.clase} (${seat.estado})`;
+  
+  if (seat.estado !== 'vendido') {
+    div.onclick = () => toggleSeatSelection(seat);
+  } else {
+    div.style.cursor = 'not-allowed';
+  }
+  
+  return div;
+}
+
+/* ========================================= */
+/* TOGGLE SEAT SELECTION */
+/* ========================================= */
+function toggleSeatSelection(seat) {
+  if (!currentUser) {
+    alert("Debes iniciar sesión para seleccionar asientos");
+    openModal("modal-login");
+    return;
+  }
+  
+  const maxTickets = parseInt(document.getElementById("tickets").value) || 1;
+  const seatIndex = selectedSeats.findIndex(s => s.seatId === seat.id);
+  
+  if (seatIndex > -1) {
+    selectedSeats.splice(seatIndex, 1);
+    if (socket && socket.connected) {
+      socket.emit('release-seat', { seatId: seat.id });
+    }
+  } else {
+    if (selectedSeats.length >= maxTickets) {
+      alert(`Solo puedes seleccionar hasta ${maxTickets} asiento(s)`);
+      return;
+    }
+    
+    if (seat.estado !== 'libre') {
+      alert("Este asiento no está disponible");
+      return;
+    }
+    
+    selectedSeats.push({
+      seatId: seat.id,
+      clase: seat.clase,
+      categoria: 'Adulto'
+    });
+    
+    if (socket && socket.connected) {
+      socket.emit('hold-seat', { seatId: seat.id });
+    }
+  }
+  setTimeout(() => {
+        renderSummary();
+        renderSeats();
+        updateConfirmButton();
+    }, 0);
+}
+
+/* ========================================= */
+/* RENDER SEATS - OPTIMIZACIÓN CON FRAGMENT */
+/* ========================================= */
+/* ========================================= */
+/* RENDER SEATS - COMPLETO Y CORREGIDO */
+/* ========================================= */
+function renderSeats() {
+  if(!state || !state.seats) return;
+  
+  const container = document.getElementById("seats-container");
+  container.innerHTML = '';
+  
+  const primeraSeats = state.seats.filter(seat => seat.clase === 'primera');
+  const turistaSeats = state.seats.filter(seat => seat.clase === 'turista');
+  
+  // PRIMERA CLASE
+  if (primeraSeats.length > 0) {
+    const primeraSection = document.createElement('div');
+    primeraSection.className = 'class-section';
+    primeraSection.innerHTML = `
+      <div class="class-title">Primera Clase</div>
+      <div class="seats-grid" style="grid-template-columns: repeat(3, 1fr);"></div>
+    `;
+    const primeraGrid = primeraSection.querySelector('.seats-grid');
+    
+    // Ordenar asientos de primera clase
+    const primeraOrdenada = [...primeraSeats].sort((a, b) => {
+      const numA = parseInt(a.id.substring(1));
+      const numB = parseInt(b.id.substring(1));
+      return numA - numB;
+    });
+    
+    for (let i = 0; i < primeraOrdenada.length; i++) {
+      if (primeraOrdenada[i]) {
+        primeraGrid.appendChild(createSeatElement(primeraOrdenada[i]));
+      }
+    }
+    container.appendChild(primeraSection);
+  }
+  
+  // TURISTA
+  if (turistaSeats.length > 0) {
+    const turistaSection = document.createElement('div');
+    turistaSection.className = 'class-section';
+    turistaSection.innerHTML = `
+      <div class="class-title">Clase Turista</div>
+      <div class="seats-grid" style="grid-template-columns: repeat(3, 1fr);"></div>
+    `;
+    const turistaGrid = turistaSection.querySelector('.seats-grid');
+    
+    // Ordenar asientos de turista
+    const turistaOrdenada = [...turistaSeats].sort((a, b) => {
+      const numA = parseInt(a.id.substring(1));
+      const numB = parseInt(b.id.substring(1));
+      return numA - numB;
+    });
+    
+    for (let i = 0; i < turistaOrdenada.length; i++) {
+      if (turistaOrdenada[i]) {
+        turistaGrid.appendChild(createSeatElement(turistaOrdenada[i]));
+      }
+    }
+    container.appendChild(turistaSection);
+  }
+}
+
+/* ========================================= */
+/* FUNCIÓN PARA OCULTAR RECIBO */
+/* ========================================= */
+function hideReceipt() {
+  const receiptSection = document.getElementById("receipt");
+  const summarySection = document.querySelector(".summary-section");
+  
+  receiptSection.style.display = 'none';
+  summarySection.style.display = 'block';
+  
+  // Restablecer valores
+  selectedSeats = [];
+  renderSummary();
+  updateConfirmButton();
+  
+  // Hacer scroll hacia arriba
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateConfirmButton() {
+  const confirmBtn = document.getElementById("confirm-btn");
+  const cardValidation = validateCardForm();
+  const hasSelectedSeats = selectedSeats.length > 0;
+  const isUserLoggedIn = currentUser !== null;
+  const isSocketConnected = socket && socket.connected;
+  
+  // Verificar que todos los asientos seleccionados aún estén disponibles
+  let allSeatsAvailable = true;
+  if (hasSelectedSeats && state && state.seats) {
+    for (const seat of selectedSeats) {
+      const foundSeat = state.seats.find(s => s.id === seat.seatId);
+      if (!foundSeat || foundSeat.estado !== 'libre') {
+        allSeatsAvailable = false;
+        break;
+      }
+    }
+  }
+  
+  const isValid = cardValidation.valid && 
+                  hasSelectedSeats && 
+                  isUserLoggedIn && 
+                  isSocketConnected && 
+                  allSeatsAvailable;
+  
+  confirmBtn.disabled = !isValid;
+  
+  if (!isValid) {
+    if (!isUserLoggedIn) {
+      confirmBtn.title = "Debes iniciar sesión para comprar";
+    } else if (!hasSelectedSeats) {
+      confirmBtn.title = "Selecciona al menos un asiento";
+    } else if (!allSeatsAvailable) {
+      confirmBtn.title = "Algunos asientos ya no están disponibles";
+    } else if (!cardValidation.valid) {
+      confirmBtn.title = cardValidation.message;
+    } else if (!isSocketConnected) {
+      confirmBtn.title = "Sin conexión al servidor";
+    }
+  } else {
+    confirmBtn.title = "";
+  }
+}
+
+/* ========================================= */
+/* RENDER SUMMARY */
+/* ========================================= */
+function renderSummary() {
+  const container = document.getElementById("summary-items");
+  const totalElement = document.getElementById("total-amount");
+  
+  if (selectedSeats.length === 0) {
+    container.innerHTML = '<p>No hay asientos seleccionados.</p>';
+    totalElement.textContent = 'Total: $0';
+    return;
+  }
+  
+  let total = 0;
+  let html = '';
+  
+  selectedSeats.forEach((seat, index) => {
+    let precio;
+    
+    if (seat.clase === 'primera') {
+      precio = 120000;
+    } else {
+      const preciosTurista = {
+        'Adulto': 65950,
+        'Niño': 60500,
+        'Tercera Edad': 50000
+      };
+      precio = preciosTurista[seat.categoria] || 65950;
+    }
+    
+    total += precio;
+    
+    html += `
+      <div class="summary-item">
+        <div>
+          <strong>${seat.seatId}</strong> (${seat.clase})
+          <select class="categoria-select" data-index="${index}" style="margin-left: 10px;">
+            <option value="Adulto" ${seat.categoria === 'Adulto' ? 'selected' : ''}>Adulto</option>
+            <option value="Niño" ${seat.categoria === 'Niño' ? 'selected' : ''}>Niño</option>
+            <option value="Tercera Edad" ${seat.categoria === 'Tercera Edad' ? 'selected' : ''}>Tercera Edad</option>
+          </select>
+        </div>
+        <div>${formatMoney(precio)}</div>
+      </div>
+    `;
+  });
+  
+  container.innerHTML = html;
+  totalElement.textContent = `Total: ${formatMoney(total)}`;
+  
+  document.querySelectorAll('.categoria-select').forEach(select => {
+    select.onchange = function() {
+      const index = parseInt(this.dataset.index);
+      selectedSeats[index].categoria = this.value;
+      renderSummary();
+      updateConfirmButton();
+    };
+  });
+}
+
+/* ========================================= */
+/* VALIDACIÓN DE TARJETA */
+/* ========================================= */
+function validateCardForm() {
+  const cardNumber = document.getElementById("card-number").value.replace(/\s/g, '');
+  const cardCvv = document.getElementById("card-cvv").value;
+  const cardExpiry = document.getElementById("card-expiry").value;
+  const buyerName = document.getElementById("buyer-name").value.trim();
+  
+  if (!buyerName) {
+    return { valid: false, message: "Ingresa el nombre del comprador" };
+  }
+  
+  if (!/^\d{16}$/.test(cardNumber)) {
+    return { valid: false, message: "Número de tarjeta inválido (16 dígitos requeridos)" };
+  }
+  
+  if (!/^\d{3}$/.test(cardCvv)) {
+    return { valid: false, message: "CVV inválido (3 dígitos requeridos)" };
+  }
+  
+  if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
+    return { valid: false, message: "Fecha de expiración inválida (formato MM/AA)" };
+  }
+  
+  const [month, year] = cardExpiry.split('/').map(Number);
+  const currentYear = new Date().getFullYear() % 100;
+  const currentMonth = new Date().getMonth() + 1;
+  
+  if (month < 1 || month > 12) {
+    return { valid: false, message: "Mes inválido (01-12)" };
+  }
+  
+  if (year < currentYear || (year === currentYear && month < currentMonth)) {
+    return { valid: false, message: "La tarjeta está expirada" };
+  }
+  
+  return { valid: true, message: "OK" };
+}
+
+function updateConfirmButton() {
+  const confirmBtn = document.getElementById("confirm-btn");
+  const cardValidation = validateCardForm();
+  const hasSelectedSeats = selectedSeats.length > 0;
+  const isUserLoggedIn = currentUser !== null;
+  const isSocketConnected = socket && socket.connected;
+  
+  const isValid = cardValidation.valid && hasSelectedSeats && isUserLoggedIn && isSocketConnected;
+  confirmBtn.disabled = !isValid;
+  
+  if (!isValid) {
+    if (!isUserLoggedIn) {
+      confirmBtn.title = "Debes iniciar sesión para comprar";
+    } else if (!hasSelectedSeats) {
+      confirmBtn.title = "Selecciona al menos un asiento";
+    } else if (!cardValidation.valid) {
+      confirmBtn.title = cardValidation.message;
+    } else if (!isSocketConnected) {
+      confirmBtn.title = "Sin conexión al servidor";
+    }
+  } else {
+    confirmBtn.title = "";
+  }
+}
+
+document.getElementById("card-number").addEventListener("input", function(e) {
+  let value = e.target.value.replace(/\s/g, '').replace(/\D/g, '');
+  if (value.length > 16) value = value.substr(0, 16);
+  
+  let formatted = '';
+  for (let i = 0; i < value.length; i++) {
+    if (i > 0 && i % 4 === 0) formatted += ' ';
+    formatted += value[i];
+  }
+  
+  e.target.value = formatted;
+  updateConfirmButton();
+});
+
+document.getElementById("card-expiry").addEventListener("input", function(e) {
+  let value = e.target.value.replace(/\D/g, '');
+  if (value.length > 4) value = value.substr(0, 4);
+  
+  if (value.length >= 2) {
+    value = value.substr(0, 2) + '/' + value.substr(2);
+  }
+  
+  e.target.value = value;
+  updateConfirmButton();
+});
+
+document.getElementById("card-cvv").addEventListener("input", function(e) {
+  e.target.value = e.target.value.replace(/\D/g, '').substr(0, 3);
+  updateConfirmButton();
+});
+
+document.getElementById("buyer-name").addEventListener("input", updateConfirmButton);
+
+/* ========================================= */
+/* CONFIRMAR COMPRA - VERSIÓN OPTIMIZADA */
+/* ========================================= */
+document.getElementById("confirm-btn").onclick = async () => {
+    // [Validaciones iniciales de socket, tarjeta y asientos...]
+    if (!socket || !socket.connected) {
+        alert("❌ No hay conexión con el servidor");
+        return;
+    }
+    
+    const validation = validateCardForm();
+    if (!validation.valid) {
+        alert(`❌ ${validation.message}`);
+        return;
+    }
+    
+    if (selectedSeats.length === 0) {
+        alert("❌ Selecciona al menos un asiento");
+        return;
+    }
+    
+    if (!currentUser) {
+        alert("❌ Debes iniciar sesión para comprar");
+        return;
+    }
+
+    // 💡 PASO 1: CALCULAR EL TOTAL TOTAL FUERA DEL CONFIRM()
+    const finalTotal = selectedSeats.reduce((total, seat) => {
+        if (seat.clase === 'primera') return total + 120000;
+        
+        const preciosTurista = {
+            'Adulto': 65950,
+            'Niño': 60500,
+            'Tercera Edad': 50000
+        };
+        return total + (preciosTurista[seat.categoria] || 65950);
+    }, 0);
+
+    // 💡 PASO 2: USAR EL VALOR YA CALCULADO Y FORMATEADO
+    if (!confirm(`¿Confirmar compra de ${selectedSeats.length} asiento(s) por ${formatMoney(finalTotal)}?`)) {
+        return;
+    }
+    
+    // [Lógica para emitir el evento...]
+    const cardNumber = document.getElementById("card-number").value.replace(/\s/g, '');
+    const cardLast4 = cardNumber.slice(-4);
+    
+    socket.emit('confirm', {
+        seats: selectedSeats,
+        metodoPago: `Tarjeta ****${cardLast4}`,
+        comprador: { 
+            nombre: document.getElementById("buyer-name").value || currentUser.username 
+        }
+    });
+};
+
+/* ========================================= */
+/* SOCKET.IO */
+/* ========================================= */
+function connectSocket() {
+  if (socket) {
+    socket.disconnect();
+  }
+  
+  socket = io({
+    auth: { token },
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000
+  });
+
+  socket.on("connect", () => {
+    console.log("✅ Conectado al servidor");
+    updateConfirmButton();
+  });
+
+  socket.on("connect_error", (error) => {
+    console.error("❌ Error de conexión:", error);
+    updateConfirmButton();
+  });
+
+  socket.on("state", (newState) => {
+    console.log("📦 Estado recibido:", newState.seats ? newState.seats.length : 0, "asientos");
+    state = newState;
+    renderFlightInfo();
+    renderSeats();
+    updateConfirmButton();
+  });
+
+  socket.on("action-error", (error) => {
+    console.error("❌ Error:", error);
+    alert(`❌ ${error.type}: ${error.reason}`);
+    
+    if (error.type === 'hold-seat' || error.type === 'confirm') {
+      fetchInitialState();
+    }
+  });
+
+  socket.on("receipt", (receipt) => {
+    console.log("🧾 Recibo recibido:", receipt);
+    showReceipt(receipt);
+  });
+
+  socket.on("disconnect", (reason) => {
+    console.log("🔌 Desconectado:", reason);
+    updateConfirmButton();
+  });
+}
+
+/* ========================================= */
+/* MOSTRAR RECIBO - CORREGIDO */
+/* ========================================= */
+function showReceipt(receipt) {
+  const receiptSection = document.getElementById("receipt");
+  // 1. OBTENER LA SECCIÓN DE RESUMEN/PAGO
+  const summarySection = document.querySelector(".summary-section"); 
+  
+  let itemsHtml = '';
+  receipt.detalle.forEach(item => {
+    itemsHtml += `
+      <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+        <div>
+          <strong>${item.seatId}</strong> - ${item.clase} (${item.categoria})
+        </div>
+        <div>${formatMoney(item.precio)}</div>
+      </div>
+    `;
+  });
+  
+  receiptSection.innerHTML = `
+    <div class="receipt-header">
+      <h2>Compra Exitosa</h2>
+      <p>Tu reserva ha sido confirmada</p>
+    </div>
+    
+        
+    <div style="margin-bottom: 20px;">
+      <h3>Detalles del Vuelo</h3>
+      <p><strong>Número de vuelo:</strong> ${receipt.numeroVuelo}</p>
+      <p><strong>Origen:</strong> ${receipt.origen}</p>
+      <p><strong>Destino:</strong> ${receipt.destino}</p>
+      <p><strong>Fecha:</strong> ${receipt.fecha} a las ${receipt.hora}</p>
+      <p><strong>Salida:</strong> ${receipt.lugarSalida}</p>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <h3>Información del Comprador</h3>
+      <p><strong>Nombre:</strong> ${receipt.comprador}</p>
+      <p><strong>Método de pago:</strong> ${receipt.metodoPago}</p>
+      <p><strong>Asientos comprados:</strong> ${receipt.cantidadAsientos}</p>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <h3>Detalle de Asientos</h3>
+      ${itemsHtml}
+    </div>
+    
+    <div style="text-align: right; font-size: 24px; font-weight: bold; padding-top: 20px; border-top: 2px solid var(--glass-border);">
+      <strong>TOTAL:</strong> ${formatMoney(receipt.total)}
+    </div>
+    
+    <div style="margin-top: 20px; padding: 15px; background: rgba(0,100,0,0.1); border-radius: 10px;">
+      <p style="margin: 0; text-align: center; color: #2e7d32;">
+        <strong>Pago aprobado</strong><br>
+        Recibirás un correo con los detalles de tu reserva
+      </p>
+    </div>
+    
+        <button onclick="hideReceipt();" style="width: 100%; margin-top: 20px;" class="primary">Nueva Compra</button>
+  `;
+  
+  // 3. OCULTAR LA SECCIÓN DE RESUMEN Y PAGO
+  summarySection.style.display = 'none'; 
+  
+  receiptSection.style.display = 'block';
+  
+  selectedSeats = [];
+  renderSummary();
+  document.getElementById("card-number").value = '';
+  document.getElementById("card-cvv").value = '';
+  document.getElementById("card-expiry").value = '';
+  
+  receiptSection.scrollIntoView({ behavior: 'smooth' });
+  updateConfirmButton();
+}
+
+/* ========================================= */
+/* BOTONES ADICIONALES */
+/* ========================================= */
+document.getElementById("clear-selection").onclick = () => {
+  if (selectedSeats.length === 0) {
+    alert("No hay asientos seleccionados para limpiar");
+    return;
+  }
+  
+  if (confirm(`¿Limpiar ${selectedSeats.length} asiento(s) seleccionado(s)?`)) {
+    selectedSeats.forEach(seat => {
+      if (socket && socket.connected) {
+        socket.emit('release-seat', { seatId: seat.seatId });
+      }
+    });
+    
+    selectedSeats = [];
+    renderSummary();
+    renderSeats();
+    updateConfirmButton();
+  }
+};
+
+document.getElementById("reset-all").onclick = () => {
+  if (!currentUser || currentUser.role !== 'admin') {
+    alert("❌ Solo administradores pueden resetear los asientos");
+    return;
+  }
+  
+  if (confirm("¿Seguro que quieres reiniciar TODOS los asientos?\nEsta acción no se puede deshacer.")) {
+    if (socket && socket.connected) {
+      socket.emit('reset-seats');
+    }
+  }
+};
+
+document.getElementById("tickets").addEventListener("input", function() {
+  const max = parseInt(this.value) || 1;
+  
+  if (selectedSeats.length > max) {
+    const toRemove = selectedSeats.length - max;
+    selectedSeats.splice(-toRemove);
+    renderSummary();
+    renderSeats();
+    updateConfirmButton();
+  }
+});
+
+/* ========================================= */
+/* INICIALIZACIÓN */
+/* ========================================= */
+async function fetchInitialState() {
+  try {
+    console.log('🌐 Obteniendo estado inicial...');
+    const response = await fetch("/state");
+    if (!response.ok) throw new Error("Error fetching state");
+    
+    state = await response.json();
+    console.log('✅ Estado recibido:', state.seats ? state.seats.length : 0, 'asientos');
+    
+    renderFlightInfo();
+    renderSeats();
+    renderUI();
+  } catch (error) {
+    console.error("❌ Error cargando estado inicial:", error);
+    alert("Error al conectar con el servidor. Recarga la página.");
+  }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log('🚀 DOM cargado, iniciando aplicación...');
+  
+  if (token) {
+    try {
+      const response = await fetch("/me", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        currentUser = data.user;
+        console.log('👋 Usuario autenticado:', currentUser.username);
+      } else {
+        token = null;
+        localStorage.removeItem("token");
+      }
+    } catch (error) {
+      console.error("❌ Error verificando usuario:", error);
+    }
+  }
+  
+  renderUI();
+  await fetchInitialState();
+  
+  if (currentUser) {
+    console.log('🔌 Conectando socket...');
+    connectSocket();
+  }
+  
+  updateConfirmButton();
+  console.log('✅ Aplicación lista');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+cd Downloads\lix
+npm init -y
+npm install express socket.io
+node SERVER.js
+
+cd Desktop\sistema vuelos oficial
+node SERVER.js
+
+'admin123@admin.com';
+
+cd Downloads\lix
+npm init -y
+npm install express socket.io
+node SERVER.js
+
+
+
+cd Desktop\lix
+node SERVER.js
+
+npm install mysql12
+
+node create_admin.js admin admin
+
+Servidor B
+npm install
+
+
+show tables
+SELECT * FROM users;
+SELECT id, username, role FROM users;
+DELETE FROM users
+WHERE role = 'user';
+USE flightdb
+
+
+Limite de asientos en seleccion
+contraseña
+usuario
+
+

@@ -1,11 +1,13 @@
 // SERVER.js LIMPIO Y FUNCIONAL
+// SERVER.js LIMPIO Y FUNCIONAL
 const express = require('express');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('./db');
+// Asegúrate de que este 'db' es un Pool o Conexión de mysql2/promise
+const db = require('./db'); 
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
 const PORT = process.env.PORT || 3000;
@@ -15,17 +17,19 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname)));
+// Nota: 'express.static(path.join(__dirname))' asume que los archivos como index.html
+// están en la misma carpeta que SERVER.js, lo cual es correcto según tu estructura.
+app.use(express.static(path.join(__dirname))); 
 
 // ----------------- Información del vuelo -----------------
 const FLIGHT = {
-  numero: 'QTR-0810',
-  tipo: 'Sencillo',
-  origen: 'Ciudad de México (MEX)',
-  destino: 'Doha (DOH), Qatar',
-  fecha: '08/10/25',
-  hora: '20:00',
-  lugarSalida: 'Terminal 2, Puerta 2'
+  numero: 'QTR-0810',
+  tipo: 'Sencillo',
+  origen: 'Ciudad de México (MEX)',
+  destino: 'Doha (DOH), Qatar',
+  fecha: '08/10/25',
+  hora: '20:00',
+  lugarSalida: 'Terminal 2, Puerta 2'
 };
 
 // ----------------- Recuperación de contraseñas -----------------
@@ -33,198 +37,244 @@ const recoveryCodes = {};
 
 // ----------------- Helpers -----------------
 function signToken(user) {
-  return jwt.sign({
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    role: user.role || 'user'
-  }, JWT_SECRET, { expiresIn: '12h' });
+  return jwt.sign({
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role || 'user'
+  }, JWT_SECRET, { expiresIn: '12h' });
 }
 
 function verifyToken(token) {
-  try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch (e) {
-    return null;
-  }
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (e) {
+    return null;
+  }
 }
 
-function publicState(cb) {
-  db.query(`
-    SELECT id, clase, estado 
-    FROM seats 
-    ORDER BY 
-      clase DESC,
-      CAST(SUBSTRING(id, 2) AS UNSIGNED)
-  `, (err, rows) => {
-    if (err) return cb(err);
-    cb(null, { flight: FLIGHT, seats: rows });
-  });
+// *** CORREGIDO: publicState ahora es ASYNC y devuelve el estado directamente. ***
+async function publicState() {
+  try {
+    // [rows] desestructura para obtener la data sin los metadatos
+    const [rows] = await db.query(`
+      SELECT id, clase, estado 
+      FROM seats 
+      ORDER BY 
+        clase DESC,
+        CAST(SUBSTRING(id, 2) AS UNSIGNED)
+    `);
+    return { flight: FLIGHT, seats: rows };
+  } catch (err) {
+    // Propaga el error para que sea manejado por el caller (la ruta o el socket)
+    console.error("Error al obtener estado:", err);
+    throw err; 
+  }
 }
 
 // ----------------- Registro -----------------
+// *** CORREGIDO: usa await y try/catch ***
 app.post('/register', async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password } = req.body;
 
-  if (!username || !email || !password)
-    return res.status(400).json({ ok: false, error: "Faltan datos" });
+  if (!username || !email || !password)
+    return res.status(400).json({ ok: false, error: "Faltan datos" });
 
-  try {
-    const hashed = await bcrypt.hash(password, 10);
+  try {
+    const hashed = await bcrypt.hash(password, 10);
 
-    db.query(
-      'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
-      [username, email, hashed, 'user'],
-      err => {
-        if (err) return res.status(500).json({ ok: false, error: err.code });
-        res.json({ ok: true });
-      }
-    );
-  } catch (e) {
-    return res.status(500).json({ ok: false, error: "Error interno" });
-  }
+    // Uso de await para la consulta
+    await db.query(
+      'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
+      [username, email, hashed, 'user']
+    );
+    
+    res.json({ ok: true });
+  } catch (e) {
+    // Captura errores de hash o de clave duplicada de MySQL
+    return res.status(500).json({ ok: false, error: e.code || "Error interno del servidor" });
+  }
 });
 
 // ----------------- Login -----------------
-app.post('/login', (req, res) => {
-  const { email, password } = req.body;
+// *** CORREGIDO: usa await y try/catch, desestructura results ***
+app.post('/login', async (req, res) => { 
+  const { email, password } = req.body;
 
-  if (!email || !password)
-    return res.status(400).json({ error: "Usuario y contraseña requeridos" });
+  if (!email || !password)
+    return res.status(400).json({ error: "Usuario y contraseña requeridos" });
 
-  db.query(
-    'SELECT id, username, email, password, role FROM users WHERE email = ?',
-    [email],
-    async (err, results) => {
-      if (err) return res.status(500).json({ error: "Error de base de datos" });
+  try {
+    // Consulta con await, obteniendo solo los resultados [results]
+    const [results] = await db.query( 
+      'SELECT id, username, email, password, role FROM users WHERE email = ?',
+      [email]
+    );
+        
+    if (!results.length)
+      return res.status(401).json({ error: "Credenciales inválidas" });
 
-      if (!results.length)
-        return res.status(401).json({ error: "Credenciales inválidas" });
+    const user = results[0];
+    const match = await bcrypt.compare(password, user.password);
 
-      const user = results[0];
-      const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).json({ error: "Credenciales inválidas" });
 
-      if (!match) return res.status(401).json({ error: "Credenciales inválidas" });
+    const token = signToken(user);
 
-      const token = signToken(user);
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
 
-      res.json({
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role: user.role
-        }
-      });
-    }
-  );
+  } catch (err) {
+    return res.status(500).json({ error: "Error de base de datos: " + err.code });
+  }
 });
 
 // ----------------- Forgot password -----------------
-app.post('/forgot', (req, res) => {
-  const { email } = req.body;
+// *** CORREGIDO: usa await y try/catch ***
+app.post('/forgot', async (req, res) => {
+  const { email } = req.body;
 
-  if (!email)
-    return res.status(400).json({ ok: false, error: "Correo requerido" });
+  if (!email)
+    return res.status(400).json({ ok: false, error: "Correo requerido" });
 
-  db.query("SELECT id FROM users WHERE email = ?", [email], (err, rows) => {
-    if (err) return res.status(500).json({ ok: false, error: "Error de DB" });
-    if (!rows.length) return res.status(404).json({ ok: false, error: "Correo no encontrado" });
+  try {
+    const [rows] = await db.query("SELECT id FROM users WHERE email = ?", [email]); // <<-- await
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    recoveryCodes[email] = code;
+    if (!rows.length) return res.status(404).json({ ok: false, error: "Correo no encontrado" });
 
-    console.log("Código de recuperación:", email, "=>", code);
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    recoveryCodes[email] = code;
 
-    res.json({ ok: true });
-  });
+    console.log("Código de recuperación:", email, "=>", code);
+
+    res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: "Error de DB: " + err.code });
+  }
 });
 
 // ----------------- Reset password -----------------
+// *** CORREGIDO: usa await y try/catch ***
 app.post('/reset-password', async (req, res) => {
-  const { email, code, newPassword } = req.body;
+  const { email, code, newPassword } = req.body;
 
-  if (!email || !code || !newPassword)
-    return res.status(400).json({ ok: false, error: "Faltan datos" });
+  if (!email || !code || !newPassword)
+    return res.status(400).json({ ok: false, error: "Faltan datos" });
 
-  if (recoveryCodes[email] !== code)
-    return res.status(401).json({ ok: false, error: "Código incorrecto" });
+  if (recoveryCodes[email] !== code)
+    return res.status(401).json({ ok: false, error: "Código incorrecto" });
 
-  const hash = await bcrypt.hash(newPassword, 10);
+  try {
+    const hash = await bcrypt.hash(newPassword, 10);
 
-  db.query("UPDATE users SET password = ? WHERE email = ?", [hash, email], err => {
-    if (err) return res.status(500).json({ ok: false, error: "Error de DB" });
-
-    delete recoveryCodes[email];
-    res.json({ ok: true });
-  });
+    await db.query("UPDATE users SET password = ? WHERE email = ?", [hash, email]); // <<-- await
+    
+    delete recoveryCodes[email];
+    res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: "Error de DB: " + err.code });
+  }
 });
 
 // ----------------- /me -----------------
 app.get('/me', (req, res) => {
-  const auth = req.headers.authorization || "";
-  const token = auth.replace("Bearer ", "");
+  // ... (no hay cambios necesarios aquí ya que no toca la DB) ...
+  const auth = req.headers.authorization || "";
+  const token = auth.replace("Bearer ", "");
 
-  if (!token) return res.json({ user: null });
+  if (!token) return res.json({ user: null });
 
-  const payload = verifyToken(token);
-  if (!payload) return res.status(401).json({ user: null });
+  const payload = verifyToken(token);
+  if (!payload) return res.status(401).json({ user: null });
 
-  res.json({ user: payload });
+  res.json({ user: payload });
 });
 
 // ----------------- /state -----------------
-app.get('/state', (req, res) => {
-  publicState((err, state) => {
-    if (err) return res.status(500).json({ error: "Error de BD" });
-    res.json(state);
-  });
+// *** CORREGIDO: usa await y try/catch ***
+app.get('/state', async (req, res) => {
+  try {
+    // publicState ahora es async y no usa callback
+    const state = await publicState(); 
+    res.json(state);
+  } catch (err) {
+    return res.status(500).json({ error: "Error de BD: " + err.code });
+  }
 });
 
 // ----------------- SOCKET.IO -----------------
 io.use((socket, next) => {
-  const token = socket.handshake.auth?.token;
-  if (!token) return next();
+  const token = socket.handshake.auth?.token;
+  if (!token) return next();
 
-  const payload = verifyToken(token);
-  socket.user = payload || null;
-  next();
+  const payload = verifyToken(token);
+  socket.user = payload || null;
+  next();
 });
 
 // ----------------- Conexión de sockets -----------------
 io.on('connection', (socket) => {
-  console.log("Conectado:", socket.id);
+  console.log("Conectado:", socket.id);
 
-  publicState((err, state) => {
-    if (!err) socket.emit('state', state);
-  });
+  // Llama a publicState en una función asíncrona inmediata
+  (async () => {
+    try {
+      const state = await publicState();
+      socket.emit('state', state);
+    } catch (e) {
+      console.error("Error al emitir estado inicial:", e);
+    }
+  })();
 
-  socket.on('hold-seat', ({ seatId }) => {
-    db.query("SELECT estado FROM seats WHERE id = ?", [seatId], (err, rows) => {
-      if (err || !rows.length) return;
+  // *** CORREGIDO: Usando IIFE (función asíncrona que se llama inmediatamente) para manejar await ***
+  socket.on('hold-seat', ({ seatId }) => {
+    (async () => {
+      try {
+        const [rows] = await db.query("SELECT estado FROM seats WHERE id = ?", [seatId]);
+        
+        if (rows.length && rows[0].estado === "libre") {
+          await db.query("UPDATE seats SET estado = 'retenido' WHERE id = ?", [seatId]);
+          const s = await publicState();
+          io.emit("state", s);
+        }
+      } catch (e) {
+        console.error("Error en hold-seat:", e);
+      }
+    })();
+  });
 
-      if (rows[0].estado !== "libre") return;
+  socket.on('release-seat', ({ seatId }) => {
+    (async () => {
+      try {
+        await db.query("UPDATE seats SET estado = 'libre' WHERE id = ?", [seatId]);
+        const s = await publicState();
+        io.emit("state", s);
+      } catch (e) {
+        console.error("Error en release-seat:", e);
+      }
+    })();
+  });
 
-      db.query("UPDATE seats SET estado = 'retenido' WHERE id = ?", [seatId], () => {
-        publicState((e, s) => io.emit("state", s));
-      });
-    });
-  });
+  socket.on('reset-seats', () => {
+    if (!socket.user || socket.user.role !== "admin") return;
 
-  socket.on('release-seat', ({ seatId }) => {
-    db.query("UPDATE seats SET estado = 'libre' WHERE id = ?", [seatId], () => {
-      publicState((e, s) => io.emit("state", s));
-    });
-  });
-
-  socket.on('reset-seats', () => {
-    if (!socket.user || socket.user.role !== "admin") return;
-
-    db.query("UPDATE seats SET estado = 'libre'", () => {
-      publicState((e, s) => io.emit("state", s));
-    });
-  });
+    (async () => {
+      try {
+        await db.query("UPDATE seats SET estado = 'libre'");
+        const s = await publicState();
+        io.emit("state", s);
+      } catch (e) {
+        console.error("Error en reset-seats:", e);
+      }
+    })();
+  });
 });
 
 // ----------------- Health check -----------------
@@ -235,5 +285,5 @@ app.use((req, res) => res.status(404).json({ error: "Ruta no encontrada" }));
 
 // ----------------- Start server -----------------
 server.listen(PORT, () => {
-  console.log(`Servidor en http://localhost:${PORT}`);
+  console.log(`Servidor en http://localhost:${PORT}`);
 });

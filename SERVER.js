@@ -55,23 +55,23 @@ function verifyToken(token) {
 
 // *** CORREGIDO: publicState ahora es ASYNC y devuelve el estado directamente. ***
 async function publicState() {
-  try {
-    // [rows] desestructura para obtener la data sin los metadatos
-    // SERVER.js (función publicState)
-// SERVER.js (función publicState)
-// Asegúrate de que TODA la consulta esté envuelta en backticks (`` ` ``)
-const [rows] = await db.query(` 
-    SELECT id, clase, estado
-    FROM seats
-    ORDER BY
-        clase DESC,
-        CAST(SUBSTRING(id, 2) AS UNSIGNED)`); // <-- El paréntesis `)` que cerraba la consulta SQL ya no existe.
-    return { flight: FLIGHT, seats: rows };
-  } catch (err) {
-    // Propaga el error para que sea manejado por el caller (la ruta o el socket)
-    console.error("Error al obtener estado:", err);
-    throw err; 
-  }
+    try {
+        // 1. Corregido: 'AWAIT' debe ser 'await' (minúsculas).
+        // 2. Corregido: Se usa '[rows]' en lugar de '[row]' para la desestructuración.
+        const [rows] = await db.query(`
+            SELECT id, clase, estado
+            FROM seats
+            ORDER BY
+                clase DESC,
+                CAST(SUBSTRING(id, 2) AS UNSIGNED)
+        `);
+        // 3. Corregido: Retorna 'rows' (plural) que es el nombre de la variable desestructurada.
+        return { flight: FLIGHT, seats: rows };
+    } catch (err) {
+        // Propaga el error para que sea manejado por el caller (la ruta o el socket)
+        console.error("Error al obtener estado:", err);
+        throw err;
+    }
 }
 
 // ----------------- Registro -----------------

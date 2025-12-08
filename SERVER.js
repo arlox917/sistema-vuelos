@@ -57,13 +57,15 @@ function verifyToken(token) {
 async function publicState() {
   try {
     // [rows] desestructura para obtener la data sin los metadatos
-    const [rows] = await db.query(`
-      SELECT id, clase, estado 
-      FROM seats 
-      ORDER BY 
-        clase DESC,
-        CAST(SUBSTRING(id, 2) AS UNSIGNED)
-    `);
+    // SERVER.js (función publicState)
+// SERVER.js (función publicState)
+// Asegúrate de que TODA la consulta esté envuelta en backticks (`` ` ``)
+const [rows] = await db.query(` 
+    SELECT id, clase, estado
+    FROM seats
+    ORDER BY
+        clase DESC,
+        CAST(SUBSTRING(id, 2) AS UNSIGNED)`); // <-- El paréntesis `)` que cerraba la consulta SQL ya no existe.
     return { flight: FLIGHT, seats: rows };
   } catch (err) {
     // Propaga el error para que sea manejado por el caller (la ruta o el socket)

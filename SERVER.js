@@ -78,10 +78,36 @@ async function publicState() {
 // *** CORREGIDO: usa await y try/catch ***
 app.post('/register', async (req, res) => {
   const { username, email, password } = req.body;
+  // 1. Validación de campos vacíos (ya existente)
+    if (!username || !email || !password)
+        return res.status(400).json({ ok: false, error: "Faltan datos (nombre de usuario, email o contraseña)." });
+    
+    // 2. Validación de Longitud Mínima
+    const MIN_LENGTH = 8;
+    if (password.length < MIN_LENGTH) {
+        return res.status(400).json({ 
+            ok: false, 
+            error: `La contraseña debe tener al menos ${MIN_LENGTH} caracteres.` 
+        });
+    }
 
-  if (!username || !email || !password)
-    return res.status(400).json({ ok: false, error: "Faltan datos" });
-
+    // 3. Validación de Complejidad (Usando Regex)
+    // Regex que requiere:
+    // ^        Inicio de la cadena
+    // (?=.*[a-z]) Debe contener al menos una minúscula
+    // (?=.*[A-Z]) Debe contener al menos una mayúscula
+    // (?=.*\d)    Debe contener al menos un dígito numérico (0-9)
+    // (?=.*[\W_]) Debe contener al menos un carácter especial (símbolo, espacio, etc.)
+    // .{8,}    Debe tener una longitud mínima de 8 caracteres (aunque ya se validó antes)
+    // $        Fin de la cadena
+    const complexityRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    
+    if (!complexityRegex.test(password)) {
+        return res.status(400).json({ 
+            ok: false, 
+            error: "La contraseña es débil. Debe incluir: mayúscula, minúscula, número y símbolo." 
+        });
+    }
   try {
     const hashed = await bcrypt.hash(password, 10);
 
@@ -97,7 +123,6 @@ app.post('/register', async (req, res) => {
     return res.status(500).json({ ok: false, error: e.code || "Error interno del servidor" });
   }
 });
-
 // ----------------- Login -----------------
 // *** CORREGIDO: usa await y try/catch, desestructura results ***
 app.post('/login', async (req, res) => { 

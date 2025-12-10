@@ -336,8 +336,8 @@ socket.on('confirm', async (payload) => {
             
             // 2. Transición de Retenido a Vendido
             const [result] = await db.query(
-                "UPDATE seats SET estado = 'vendido', user_id = ? WHERE id = ? AND estado = 'retenido'",
-                [userId, seatId]
+                "UPDATE seats SET estado = 'vendido' AND estado = 'retenido'",
+                //[userId, seatId]
             );
             
             if (result.affectedRows === 0) {

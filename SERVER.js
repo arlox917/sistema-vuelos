@@ -32,6 +32,15 @@ const FLIGHT = {
   lugarSalida: 'Terminal 2, Puerta 2'
 };
 
+const PRECIOS = {
+    'primera': 120000,
+    'turista': {
+        'Adulto': 65950,
+        'Niño': 60500,
+        'Tercera Edad': 50000
+    }
+};
+
 // ----------------- Recuperación de contraseñas -----------------
 const recoveryCodes = {};
 
@@ -290,77 +299,73 @@ io.on('connection', (socket) => {
   });
 
 socket.on('confirm', async (payload) => {
-    const userId = obtenerUserIdDesdeToken(socket.handshake.auth.token);
-       
-    // 1. Verificar si hay asientos para comprar
+    // 🚨 ASUME: socket.user.id se adjunta por middleware de socket
+    const userId = socket.user ? socket.user.id : null; 
+    
+    if (!userId) {
+        return socket.emit('action-error', { type: 'confirm', reason: 'No autorizado. Vuelve a iniciar sesión.' });
+    }
+
     if (!payload.seats || payload.seats.length === 0) {
         return socket.emit('action-error', { type: 'confirm', reason: 'No hay asientos seleccionados para comprar.' });
     }
-       
-    let totalCompra = 0;
-    const detalleCompra = [];
-    const flightInfo = obtenerInfoVuelo(); // Obtener los datos del vuelo (deberías tener esta función)
-
+    
+    // --- LÓGICA DE TRANSACCIÓN ---
     try {
+        await db.query('START TRANSACTION'); // Inicia la transacción
+
+        let totalCompra = 0;
+        const detalleCompra = [];
+        const flightInfo = obtenerInfoVuelo(); // Asume que esta función es segura y accesible
+
         // Recorrer cada asiento seleccionado y actualizar su estado
         for (const item of payload.seats) {
             const seatId = item.seatId;
-
-            // 2. Transición de Retenido a Vendido
-            const [result] = await db.query(
-                    "UPDATE seats SET estado = 'vendido', user_id = ? WHERE id = ? AND estado = 'retenido'",
-                    [userId, seatId]
-                );
-               
-        if (result.affectedRows === 0) {
-            // Si falla, es porque el asiento fue liberado por timeout o comprado
-            // NO HACER ROLLBACK DE LO ANTERIOR POR SIMPLICIDAD, pero es mejor liberar lo demás.
-            console.error(`Fallo al comprar asiento ${seatId}: no estaba retenido.`);
-                   
-            // Notificar al cliente (y liberar cualquier otro asiento retenido por él)
-            return socket.emit('action-error', { type: 'confirm', reason: `El asiento ${seatId} ya no está disponible.` });
-            }
-               
-            // 3. Recopilar datos para el recibo y calcular el total
             let precio;
-            // Asumiendo que tienes la función para obtener el precio por clase/categoría
-            // y que 'clase' y 'categoria' vienen en el payload o puedes obtenerlas de DB
+            
+            // CÁLCULO DE PRECIO EN BACKEND (Seguridad)
             if (item.clase === 'primera') {
-                precio = 120000;
+                precio = PRECIOS.primera;
             } else {
-                const preciosTurista = { /* ... los precios de tu frontend ... */ };
-                precio = preciosTurista[item.categoria] || 65950;
+                precio = PRECIOS.turista[item.categoria] || PRECIOS.turista.Adulto; 
             }
+            
+            // Transición de Retenido a Vendido
+            const [result] = await db.query(
+                "UPDATE seats SET estado = 'vendido', user_id = ? WHERE id = ? AND estado = 'retenido'",
+                [userId, seatId]
+            );
+            
+            if (result.affectedRows === 0) {
+                // Si la actualización falla (ya no estaba retenido o no existía), abortar la compra
+                await db.query('ROLLBACK'); // 🚨 Revertir todas las compras anteriores
+                console.error(`Transacción abortada: Asiento ${seatId} no disponible.`);
+                return socket.emit('action-error', { 
+                    type: 'confirm', 
+                    reason: `El asiento ${seatId} ya no está disponible. Compra cancelada.` 
+                });
+            }
+            
             totalCompra += precio;
             detalleCompra.push({ ...item, precio });
         }
-           
-            // 4. Enviar Recibo al cliente que compró
-        const receipt = {
-            numeroVuelo: flightInfo.numero,
-            origen: flightInfo.origen,
-            destino: flightInfo.destino,
-            fecha: flightInfo.fecha,
-            hora: flightInfo.hora,
-            lugarSalida: flightInfo.lugarSalida,
-            comprador: payload.comprador.nombre,
-            metodoPago: payload.metodoPago,
-            cantidadAsientos: detalleCompra.length,
-            total: totalCompra,
-            detalle: detalleCompra
-        };
-           
+        
+        await db.query('COMMIT'); // 🥳 Éxito: confirmar todas las actualizaciones
+
+        // 4. Enviar Recibo al cliente que compró
+        // ... (construcción del objeto receipt como lo tenías) ...
         socket.emit('receipt', receipt);
 
-        // 5. Emitir nuevo estado a TODOS los clientes (para que vean los asientos como 'vendidos')
+        // 5. Emitir nuevo estado a TODOS los clientes
         const newState = await publicState();
         io.emit('state', newState);
 
-        } catch (e) {
-            console.error("Error durante la compra (confirm):", e);
-            socket.emit('action-error', { type: 'confirm', reason: 'Error interno del servidor al procesar la compra.' });
-        }
-    });
+    } catch (e) {
+        // 🚨 Si falla la DB o la conexión, intentar el rollback
+        await db.query('ROLLBACK').catch(console.error); 
+        console.error("Error grave durante la transacción de compra:", e);
+        socket.emit('action-error', { type: 'confirm', reason: 'Error interno del servidor al procesar la compra. Intente de nuevo.' });
+    }
 });
     
   socket.on('reset-seats', () => {

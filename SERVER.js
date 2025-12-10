@@ -316,7 +316,6 @@ socket.on('confirm', async (payload) => {
         
         let totalCompra = 0;
         const detalleCompra = [];
-        const flightInfo = obtenerInfoVuelo(); // Asume que esta función devuelve los datos del vuelo
         
         for (const item of payload.seats) {
             const seatId = item.seatId;

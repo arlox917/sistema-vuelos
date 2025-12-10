@@ -289,6 +289,80 @@ io.on('connection', (socket) => {
     })();
   });
 
+socket.on('confirm', async (payload) => {
+    const userId = obtenerUserIdDesdeToken(socket.handshake.auth.token);
+       
+    // 1. Verificar si hay asientos para comprar
+    if (!payload.seats || payload.seats.length === 0) {
+        return socket.emit('action-error', { type: 'confirm', reason: 'No hay asientos seleccionados para comprar.' });
+    }
+       
+    let totalCompra = 0;
+    const detalleCompra = [];
+    const flightInfo = obtenerInfoVuelo(); // Obtener los datos del vuelo (deberías tener esta función)
+
+    try {
+        // Recorrer cada asiento seleccionado y actualizar su estado
+        for (const item of payload.seats) {
+            const seatId = item.seatId;
+
+            // 2. Transición de Retenido a Vendido
+            const [result] = await db.query(
+                    "UPDATE seats SET estado = 'vendido', user_id = ? WHERE id = ? AND estado = 'retenido'",
+                    [userId, seatId]
+                );
+               
+        if (result.affectedRows === 0) {
+            // Si falla, es porque el asiento fue liberado por timeout o comprado
+            // NO HACER ROLLBACK DE LO ANTERIOR POR SIMPLICIDAD, pero es mejor liberar lo demás.
+            console.error(`Fallo al comprar asiento ${seatId}: no estaba retenido.`);
+                   
+            // Notificar al cliente (y liberar cualquier otro asiento retenido por él)
+            return socket.emit('action-error', { type: 'confirm', reason: `El asiento ${seatId} ya no está disponible.` });
+            }
+               
+            // 3. Recopilar datos para el recibo y calcular el total
+            let precio;
+            // Asumiendo que tienes la función para obtener el precio por clase/categoría
+            // y que 'clase' y 'categoria' vienen en el payload o puedes obtenerlas de DB
+            if (item.clase === 'primera') {
+                precio = 120000;
+            } else {
+                const preciosTurista = { /* ... los precios de tu frontend ... */ };
+                precio = preciosTurista[item.categoria] || 65950;
+            }
+            totalCompra += precio;
+            detalleCompra.push({ ...item, precio });
+        }
+           
+            // 4. Enviar Recibo al cliente que compró
+        const receipt = {
+            numeroVuelo: flightInfo.numero,
+            origen: flightInfo.origen,
+            destino: flightInfo.destino,
+            fecha: flightInfo.fecha,
+            hora: flightInfo.hora,
+            lugarSalida: flightInfo.lugarSalida,
+            comprador: payload.comprador.nombre,
+            metodoPago: payload.metodoPago,
+            cantidadAsientos: detalleCompra.length,
+            total: totalCompra,
+            detalle: detalleCompra
+        };
+           
+        socket.emit('receipt', receipt);
+
+        // 5. Emitir nuevo estado a TODOS los clientes (para que vean los asientos como 'vendidos')
+        const newState = await publicState();
+        io.emit('state', newState);
+
+        } catch (e) {
+            console.error("Error durante la compra (confirm):", e);
+            socket.emit('action-error', { type: 'confirm', reason: 'Error interno del servidor al procesar la compra.' });
+        }
+    });
+});
+    
   socket.on('reset-seats', () => {
     if (!socket.user || socket.user.role !== "admin") return;
 

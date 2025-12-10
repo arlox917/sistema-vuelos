@@ -300,7 +300,8 @@ io.on('connection', (socket) => {
 
 socket.on('confirm', async (payload) => {
     // 1. Identificación y Verificación (Asumiendo que socket.user existe)
-    const userId = socket.user ? socket.user.id : null; 
+    const userId = socket.user ? socket.user.id : null;
+    const flightInfo = FLIGHT;
     
     if (!userId) {
         return socket.emit('action-error', { type: 'confirm', reason: 'No autorizado. Por favor, vuelve a iniciar sesión.' });
@@ -356,11 +357,18 @@ socket.on('confirm', async (payload) => {
         // 4. Enviar Recibo al cliente que compró
         const receipt = {
             // ... (construcción del objeto receipt) ...
-            comprador: payload.comprador.nombre,
-            metodoPago: payload.metodoPago,
-            cantidadAsientos: detalleCompra.length,
-            total: totalCompra,
-            detalle: detalleCompra
+            numeroVuelo: flightInfo.numero,
+            origen: flightInfo.origen,
+            destino: flightInfo.destino,
+            fecha: flightInfo.fecha,
+            hora: flightInfo.hora,
+            lugarSalida: flightInfo.lugarSalida,
+            // --- DATOS DE LA COMPRA CALCULADOS ---
+            comprador: payload.comprador.nombre,
+            metodoPago: payload.metodoPago,
+            cantidadAsientos: detalleCompra.length,
+            total: totalCompra,
+            detalle: detalleCompra
         };
         socket.emit('receipt', receipt);
 

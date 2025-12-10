@@ -299,50 +299,50 @@ io.on('connection', (socket) => {
   });
 
 socket.on('confirm', async (payload) => {
-    // 🚨 ASUME: socket.user.id se adjunta por middleware de socket
+    // 1. Identificación y Verificación (Asumiendo que socket.user existe)
     const userId = socket.user ? socket.user.id : null; 
     
     if (!userId) {
-        return socket.emit('action-error', { type: 'confirm', reason: 'No autorizado. Vuelve a iniciar sesión.' });
+        return socket.emit('action-error', { type: 'confirm', reason: 'No autorizado. Por favor, vuelve a iniciar sesión.' });
     }
 
     if (!payload.seats || payload.seats.length === 0) {
         return socket.emit('action-error', { type: 'confirm', reason: 'No hay asientos seleccionados para comprar.' });
     }
     
-    // --- LÓGICA DE TRANSACCIÓN ---
+    // --- INICIO DE TRANSACCIÓN ---
     try {
-        await db.query('START TRANSACTION'); // Inicia la transacción
-
+        await db.query('START TRANSACTION'); // Bloquea la DB temporalmente para esta operación
+        
         let totalCompra = 0;
         const detalleCompra = [];
-        const flightInfo = obtenerInfoVuelo(); // Asume que esta función es segura y accesible
-
-        // Recorrer cada asiento seleccionado y actualizar su estado
+        const flightInfo = obtenerInfoVuelo(); // Asume que esta función devuelve los datos del vuelo
+        
         for (const item of payload.seats) {
             const seatId = item.seatId;
             let precio;
             
-            // CÁLCULO DE PRECIO EN BACKEND (Seguridad)
+            // 🚨 SEGURIDAD: CALCULAR PRECIO EN EL BACKEND
             if (item.clase === 'primera') {
                 precio = PRECIOS.primera;
             } else {
+                // Usa la categoría enviada, pero con precios definidos en el backend
                 precio = PRECIOS.turista[item.categoria] || PRECIOS.turista.Adulto; 
             }
             
-            // Transición de Retenido a Vendido
+            // 2. Transición de Retenido a Vendido
             const [result] = await db.query(
                 "UPDATE seats SET estado = 'vendido', user_id = ? WHERE id = ? AND estado = 'retenido'",
                 [userId, seatId]
             );
             
             if (result.affectedRows === 0) {
-                // Si la actualización falla (ya no estaba retenido o no existía), abortar la compra
-                await db.query('ROLLBACK'); // 🚨 Revertir todas las compras anteriores
+                // 🚨 ROLLBACK si el asiento ya no estaba 'retenido'
+                await db.query('ROLLBACK'); 
                 console.error(`Transacción abortada: Asiento ${seatId} no disponible.`);
                 return socket.emit('action-error', { 
                     type: 'confirm', 
-                    reason: `El asiento ${seatId} ya no está disponible. Compra cancelada.` 
+                    reason: `El asiento ${seatId} ya no está disponible. La compra fue cancelada.` 
                 });
             }
             
@@ -350,10 +350,19 @@ socket.on('confirm', async (payload) => {
             detalleCompra.push({ ...item, precio });
         }
         
-        await db.query('COMMIT'); // 🥳 Éxito: confirmar todas las actualizaciones
+        await db.query('COMMIT'); //Confirmar todas las compras de una vez
+
+        // --- Post-Transacción ---
 
         // 4. Enviar Recibo al cliente que compró
-        // ... (construcción del objeto receipt como lo tenías) ...
+        const receipt = {
+            // ... (construcción del objeto receipt) ...
+            comprador: payload.comprador.nombre,
+            metodoPago: payload.metodoPago,
+            cantidadAsientos: detalleCompra.length,
+            total: totalCompra,
+            detalle: detalleCompra
+        };
         socket.emit('receipt', receipt);
 
         // 5. Emitir nuevo estado a TODOS los clientes
@@ -361,10 +370,10 @@ socket.on('confirm', async (payload) => {
         io.emit('state', newState);
 
     } catch (e) {
-        // 🚨 Si falla la DB o la conexión, intentar el rollback
-        await db.query('ROLLBACK').catch(console.error); 
-        console.error("Error grave durante la transacción de compra:", e);
-        socket.emit('action-error', { type: 'confirm', reason: 'Error interno del servidor al procesar la compra. Intente de nuevo.' });
+        // 🚨 Manejo de fallos de DB o código
+        await db.query('ROLLBACK').catch(rollbackError => console.error("Error al revertir:", rollbackError));
+        console.error("Error grave durante la compra:", e);
+        socket.emit('action-error', { type: 'confirm', reason: 'Error interno de la compra. Intente de nuevo.' });
     }
 });
     

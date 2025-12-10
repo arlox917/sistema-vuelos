@@ -33,11 +33,15 @@ const FLIGHT = {
 };
 
 const PRECIOS = {
-    'primera': 120000,
+    'primera':{
+        'Adulto': 65000,
+        'Niño': 60000,
+        'Tercera Edad': 55000
+    },
     'turista': {
-        'Adulto': 65950,
-        'Niño': 60500,
-        'Tercera Edad': 50000
+        'Adulto': 50000,
+        'Niño': 45000,
+        'Tercera Edad': 40000
     }
 };
 

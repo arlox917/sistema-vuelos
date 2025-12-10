@@ -336,7 +336,9 @@ socket.on('confirm', async (payload) => {
             
             // 2. Transición de Retenido a Vendido
             const [result] = await db.query(
-                "UPDATE seats SET estado = 'vendido' AND estado = 'retenido'",
+                // La forma CORRECTA de asignar el ID del usuario (userId) al asiento (seatId):
+                "UPDATE seats SET estado = 'vendido', user_id = ? WHERE id = ? AND estado = 'retenido'",
+                [userId, seatId] // Los parámetros coinciden con los marcadores '?'",
                 //[userId, seatId]
             );
             

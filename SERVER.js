@@ -35,7 +35,7 @@ const FLIGHT = {
 const PRECIOS = {
     'primera':{
         'Adulto': 65000,
-        'Niño': 60000,
+        'Niño': 50000,
         'Tercera Edad': 55000
     },
     'turista': {
